@@ -10,8 +10,8 @@ func TestService(t *testing.T) {
 	t.Parallel()
 
 	service, err := New(Config{
-		DB:     newDBMock(),
-		Sender: newSenderMock(),
+		Storage: NewStorageMock(),
+		Sender:  newSenderMock(),
 	})
 	require.NoError(t, err)
 

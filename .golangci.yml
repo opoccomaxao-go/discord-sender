@@ -21,7 +21,7 @@ linters:
     - testpackage
     - gomnd
     #- staticcheck
-    #- ireturn
+    - ireturn
   fast: false
 
 issues:

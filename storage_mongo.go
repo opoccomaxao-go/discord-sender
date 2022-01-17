@@ -2,43 +2,49 @@ package discordsender
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-type DB interface {
-	Connect(config *Config) error
-	Create(Task) error
-	Update(Task) error
-	FirstToExecute() (*Task, error)
-	Watch() <-chan struct{}
-	Close() error
-}
-
 const defaultCollection = "tasks"
 
-type db struct {
+type StorageMongoConfig struct {
+	ConnectURL       string   // mongodb connect url
+	DBName           string   // used db, default: task
+	FallbackIterator Iterator // optional, used for fallback in iterator getters
+}
+
+type StorageMongo struct {
 	client      *mongo.Client
 	db          *mongo.Database
 	table       *mongo.Collection
 	firstInsert bool
+	cfg         StorageMongoConfig
 }
 
-func newDB() *db {
-	return &db{}
+func NewStorageMongo(cfg StorageMongoConfig) *StorageMongo {
+	if cfg.FallbackIterator == nil {
+		cfg.FallbackIterator = &IteratorTicker{
+			Duration: time.Minute,
+		}
+	}
+
+	return &StorageMongo{
+		cfg: cfg,
+	}
 }
 
-func (s *db) Connect(config *Config) error {
-	if err := s.connect(config); err != nil {
+func (s *StorageMongo) Connect() error {
+	if err := s.connect(); err != nil {
 		return err
 	}
 
-	s.db = s.client.Database(config.DBName)
+	s.db = s.client.Database(s.cfg.DBName)
 	s.table = s.db.Collection(defaultCollection)
 	s.firstInsert = true
 
@@ -49,8 +55,8 @@ func (s *db) Connect(config *Config) error {
 	return nil
 }
 
-func (s *db) connect(config *Config) error {
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(config.ConnectURL))
+func (s *StorageMongo) connect() error {
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(s.cfg.ConnectURL))
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -64,7 +70,7 @@ func (s *db) connect(config *Config) error {
 	return nil
 }
 
-func (s *db) updateCollectionIndices() error {
+func (s *StorageMongo) updateCollectionIndices() error {
 	const idxName = "expiration"
 
 	name, err := s.table.Indexes().CreateOne(
@@ -89,27 +95,23 @@ func (s *db) updateCollectionIndices() error {
 	return nil
 }
 
-func (s *db) Create(task Task) error {
-	if task.ID == primitive.NilObjectID {
-		task.ID = primitive.NewObjectID()
-	}
-
-	_, err := s.table.InsertOne(context.Background(), task)
+func (s *StorageMongo) Create(task Task) error {
+	_, err := s.table.InsertOne(context.Background(), taskToMongoTask(task))
 
 	return errors.WithStack(err)
 }
 
-func (s *db) Update(task Task) error {
+func (s *StorageMongo) Update(task Task) error {
 	_, err := s.table.UpdateByID(
 		context.Background(),
 		task.ID,
-		bson.M{"$set": task},
+		bson.M{"$set": taskToMongoTask(task)},
 	)
 
 	return errors.WithStack(err)
 }
 
-func (s *db) FirstToExecute() (*Task, error) {
+func (s *StorageMongo) FirstToExecute() (*Task, error) {
 	resp := s.table.FindOne(
 		context.Background(),
 		bson.M{"executed": false},
@@ -119,19 +121,30 @@ func (s *db) FirstToExecute() (*Task, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	var res Task
+	var res mongoTask
 
 	if err := resp.Decode(&res); err != nil {
 		return nil, ErrDBFailed
 	}
 
-	return &res, nil
+	return res.Task(), nil
 }
 
-func (s *db) Watch() <-chan struct{} {
-	panic("not implemented") // TODO: Implement
+func (s *StorageMongo) Watch() (Iterator, error) {
+	stream, err := s.table.Watch(context.Background(), mongo.Pipeline{})
+	if err != nil {
+		if s.cfg.FallbackIterator != nil {
+			return s.cfg.FallbackIterator, nil
+		}
+
+		return nil, errors.WithStack(err)
+	}
+
+	return &IteratorMongo{
+		stream: stream,
+	}, nil
 }
 
-func (s *db) Close() error {
+func (s *StorageMongo) Close() error {
 	return errors.WithStack(s.client.Disconnect(context.Background()))
 }

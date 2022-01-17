@@ -7,15 +7,13 @@ type Service struct {
 }
 
 type Config struct {
-	ConnectURL string // mongodb connect url
-	DBName     string // used db, default: task
-	DB         DB     // optional, used for tests
-	Sender     Sender // optional, used for tests
+	Storage Storage // optional
+	Sender  Sender  // optional, used for tests only
 }
 
 func New(config Config) (*Service, error) {
-	if config.DB == nil {
-		config.DB = newDB()
+	if config.Storage == nil {
+		config.Storage = NewStorageRAM()
 	}
 
 	if config.Sender == nil {
@@ -26,7 +24,7 @@ func New(config Config) (*Service, error) {
 		config: config,
 	}
 
-	if err := res.config.DB.Connect(&config); err != nil {
+	if err := res.config.Storage.Init(); err != nil {
 		return nil, errors.Wrap(err, ErrDBFailed.Error())
 	}
 
