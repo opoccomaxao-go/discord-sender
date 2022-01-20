@@ -39,7 +39,7 @@ func NewStorageMongo(cfg StorageMongoConfig) *StorageMongo {
 	}
 }
 
-func (s *StorageMongo) Connect() error {
+func (s *StorageMongo) Init() error {
 	if err := s.connect(); err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func (s *StorageMongo) updateCollectionIndices() error {
 				"expiration": 1,
 			},
 			Options: options.Index().
-				SetExpireAfterSeconds(60 * 60 * 24).
+				SetExpireAfterSeconds(0).
 				SetName(idxName),
 		},
 	)
@@ -118,6 +118,10 @@ func (s *StorageMongo) FirstToExecute() (*Task, error) {
 	)
 
 	if err := resp.Err(); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, errors.WithStack(ErrEmpty)
+		}
+
 		return nil, errors.WithStack(err)
 	}
 
@@ -140,7 +144,7 @@ func (s *StorageMongo) Watch() (Iterator, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	return &IteratorMongo{
+	return &iteratorMongo{
 		stream: stream,
 	}, nil
 }

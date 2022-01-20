@@ -13,7 +13,7 @@ type Config struct {
 
 func New(config Config) (*Service, error) {
 	if config.Storage == nil {
-		config.Storage = NewStorageRAM()
+		config.Storage = NewStorageMemory()
 	}
 
 	if config.Sender == nil {

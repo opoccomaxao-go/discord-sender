@@ -9,11 +9,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type IteratorMongo struct {
+type iteratorMongo struct {
 	stream *mongo.ChangeStream
 }
 
-func (i *IteratorMongo) Next(ctx context.Context) error {
+func (i *iteratorMongo) Next(ctx context.Context) error {
 	if i.stream.Next(ctx) {
 		return nil
 	}
@@ -21,7 +21,7 @@ func (i *IteratorMongo) Next(ctx context.Context) error {
 	return errors.WithStack(i.stream.Err())
 }
 
-func (i *IteratorMongo) Close(ctx context.Context) error {
+func (i *iteratorMongo) Close(ctx context.Context) error {
 	return errors.WithStack(i.stream.Close(ctx))
 }
 
