@@ -1,13 +1,13 @@
 package discordsender
 
 import (
+	"encoding/json"
 	"time"
 )
 
 type Task struct {
-	ID         interface{}
-	HookURL    string
-	PostData   string
+	ID         ID
 	Expiration time.Time
 	Executed   bool
+	Data       json.RawMessage
 }

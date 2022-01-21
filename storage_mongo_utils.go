@@ -2,6 +2,7 @@ package discordsender
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,36 +27,41 @@ func (i *iteratorMongo) Close(ctx context.Context) error {
 }
 
 type mongoTask struct {
-	ID         *primitive.ObjectID `bson:"_id,omitempty"`
-	HookURL    string              `bson:"hook_url"`
-	PostData   string              `bson:"post_data"`
-	Expiration time.Time           `bson:"expiration"`
-	Executed   bool                `bson:"executed"`
+	ID         ID          `bson:"_id"`
+	Expiration time.Time   `bson:"expiration"`
+	Executed   bool        `bson:"executed"`
+	Data       interface{} `bson:"data"`
 }
 
 func (w *mongoTask) Task() *Task {
-	return &Task{
+	res := &Task{
 		ID:         w.ID,
-		HookURL:    w.HookURL,
-		PostData:   w.PostData,
 		Expiration: w.Expiration,
 		Executed:   w.Executed,
 	}
+
+	switch data := w.Data.(type) {
+	case json.RawMessage:
+		res.Data = data
+	case primitive.D:
+		res.Data, _ = json.Marshal(data.Map())
+	}
+
+	return res
 }
 
 func taskToMongoTask(task Task) mongoTask {
-	var res mongoTask
-
-	if task.ID != nil {
-		if v, ok := task.ID.(*primitive.ObjectID); ok {
-			res.ID = v
-		}
+	res := mongoTask{
+		ID:         task.ID,
+		Expiration: task.Expiration,
+		Executed:   task.Executed,
 	}
 
-	res.HookURL = task.HookURL
-	res.PostData = task.PostData
-	res.Expiration = task.Expiration
-	res.Executed = task.Executed
+	if res.ID == 0 {
+		res.ID = NewTaskID()
+	}
+
+	_ = json.Unmarshal(task.Data, &res.Data)
 
 	return res
 }

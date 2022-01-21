@@ -8,9 +8,8 @@ import (
 
 type StorageMemory struct {
 	buffer    []*Task
-	mapped    map[int64]*Task
+	mapped    map[ID]*Task
 	ticker    *IteratorTicker
-	id        int64
 	mu        sync.Mutex
 	iterators []*iteratorMemory
 }
@@ -21,8 +20,7 @@ func NewStorageMemory() *StorageMemory {
 
 func (s *StorageMemory) Init() error {
 	s.buffer = make([]*Task, 1000)
-	s.id = time.Now().UnixMilli()
-	s.mapped = make(map[int64]*Task, 1000)
+	s.mapped = make(map[ID]*Task, 1000)
 	s.ticker = &IteratorTicker{Duration: time.Minute}
 
 	go s.taskClean()
@@ -32,10 +30,9 @@ func (s *StorageMemory) Init() error {
 
 func (s *StorageMemory) Create(task Task) error {
 	s.mu.Lock()
-	task.ID = s.id
+	task.ID = NewTaskID()
 	s.buffer = append(s.buffer, &task)
-	s.mapped[s.id] = &task
-	s.id++
+	s.mapped[task.ID] = &task
 	s.mu.Unlock()
 
 	go s.notifyAll()
@@ -45,10 +42,8 @@ func (s *StorageMemory) Create(task Task) error {
 
 func (s *StorageMemory) Update(task Task) error {
 	s.mu.Lock()
-	if id, ok := task.ID.(int64); ok {
-		if ptr, ok := s.mapped[id]; ok {
-			*ptr = task
-		}
+	if ptr, ok := s.mapped[task.ID]; ok {
+		*ptr = task
 	}
 	s.mu.Unlock()
 
@@ -104,9 +99,7 @@ func (s *StorageMemory) taskClean() {
 		for i, task := range s.buffer {
 			if task != nil && task.Expiration.Before(now) {
 				s.buffer[i] = nil
-				if id, ok := task.ID.(int64); ok {
-					delete(s.mapped, id)
-				}
+				delete(s.mapped, task.ID)
 			}
 		}
 

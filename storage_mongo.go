@@ -73,6 +73,11 @@ func (s *StorageMongo) connect() error {
 func (s *StorageMongo) updateCollectionIndices() error {
 	const idxName = "expiration"
 
+	_, _ = s.table.Indexes().DropOne(
+		context.Background(),
+		idxName,
+	)
+
 	name, err := s.table.Indexes().CreateOne(
 		context.Background(),
 		mongo.IndexModel{
@@ -80,7 +85,7 @@ func (s *StorageMongo) updateCollectionIndices() error {
 				"expiration": 1,
 			},
 			Options: options.Index().
-				SetExpireAfterSeconds(0).
+				SetExpireAfterSeconds(1).
 				SetName(idxName),
 		},
 	)

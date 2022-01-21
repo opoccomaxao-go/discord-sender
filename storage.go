@@ -2,6 +2,7 @@ package discordsender
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -29,9 +30,10 @@ func StorageTest(t require.TestingT, storage Storage) {
 	iter, err := storage.Watch()
 	require.NoError(t, err)
 
+	data := json.RawMessage(`{"url":"1","data":"123","2":2}`)
+
 	toSave := Task{
-		HookURL:    "1",
-		PostData:   "123",
+		Data:       data,
 		Expiration: time.Now().Add(time.Hour).UTC().Truncate(time.Millisecond),
 		Executed:   false,
 	}
@@ -51,10 +53,15 @@ func StorageTest(t require.TestingT, storage Storage) {
 	require.NoError(t, err)
 	require.NotNil(t, task)
 
+	newData := task.Data
 	toSave.ID = task.ID
+	toSave.Data = nil
+	task.Data = nil
 	assert.Equal(t, &toSave, task)
+	assert.JSONEq(t, string(data), string(newData))
 
 	toSave.Executed = true
+	toSave.Data = data
 
 	go func() {
 		_ = iter.Next(context.Background())
