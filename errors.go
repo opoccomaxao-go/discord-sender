@@ -2,8 +2,6 @@ package discordsender
 
 import (
 	"errors"
-
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
@@ -12,6 +10,6 @@ var (
 	ErrDBNotFound     = errors.New("DB not found")
 	ErrDBInvalidIndex = errors.New("DB invalid index")
 	ErrEmpty          = errors.New("empty")
-
-	ErrNoDocuments = mongo.ErrNoDocuments
+	ErrInvalidRequest = errors.New("invalid request")
+	ErrRetry          = errors.New("retry")
 )

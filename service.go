@@ -17,7 +17,7 @@ func New(config Config) (*Service, error) {
 	}
 
 	if config.Sender == nil {
-		config.Sender = newSender(&config)
+		config.Sender = newSender()
 	}
 
 	res := &Service{
