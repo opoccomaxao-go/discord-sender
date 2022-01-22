@@ -1,18 +1,36 @@
 package discordsender
 
+import "context"
+
 type senderMock struct {
-	Requests []*Request
+	Requests  chan Request
+	Responses chan Response
 }
 
 func newSenderMock() *senderMock {
-	return &senderMock{}
+	return &senderMock{
+		Requests:  make(chan Request, 10000),
+		Responses: make(chan Response, 10000),
+	}
 }
 
-func (s *senderMock) Send(request *Request) (*Response, error) {
-	s.Requests = append(s.Requests, request)
+func (m *senderMock) Fill(responses []Response) {
+	for _, res := range responses {
+		m.Responses <- res
+	}
+}
 
-	return &Response{
-		Executed: true,
-		Wait:     0,
-	}, nil
+func (m *senderMock) Send(_ context.Context, request *Request) (*Response, error) {
+	m.Requests <- *request
+
+	select {
+	case res, ok := <-m.Responses:
+		if ok {
+			return &res, nil
+		}
+
+		return nil, ErrClosed
+	default:
+		return nil, ErrClosed
+	}
 }

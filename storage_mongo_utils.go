@@ -12,18 +12,31 @@ import (
 
 type iteratorMongo struct {
 	stream *mongo.ChangeStream
+	closed bool
 }
 
-func (i *iteratorMongo) Next(ctx context.Context) error {
+func (i *iteratorMongo) Wait(ctx context.Context) error {
 	if i.stream.Next(ctx) {
 		return nil
 	}
+
+	defer i.Close(ctx)
 
 	return errors.WithStack(i.stream.Err())
 }
 
 func (i *iteratorMongo) Close(ctx context.Context) error {
+	i.closed = true
+
 	return errors.WithStack(i.stream.Close(ctx))
+}
+
+func (i *iteratorMongo) Closed() bool {
+	return i.closed
+}
+
+func (i *iteratorMongo) Notify() error {
+	return nil
 }
 
 type mongoTask struct {

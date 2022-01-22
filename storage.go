@@ -16,7 +16,7 @@ type Storage interface {
 	Update(Task) error
 	// if no documents ErrEmpty should be returned.
 	FirstToExecute() (*Task, error)
-	Watch() (Iterator, error)
+	Watch() (Notificator, error)
 	Close() error
 }
 
@@ -39,7 +39,7 @@ func StorageTest(t require.TestingT, storage Storage) {
 	}
 
 	go func() {
-		_ = iter.Next(context.Background())
+		_ = iter.Wait(context.Background())
 		watcherCalls++
 	}()
 
@@ -64,7 +64,7 @@ func StorageTest(t require.TestingT, storage Storage) {
 	toSave.Data = data
 
 	go func() {
-		_ = iter.Next(context.Background())
+		_ = iter.Wait(context.Background())
 		watcherCalls++
 	}()
 

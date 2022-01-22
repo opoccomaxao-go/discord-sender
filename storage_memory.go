@@ -9,9 +9,9 @@ import (
 type StorageMemory struct {
 	buffer    []*Task
 	mapped    map[ID]*Task
-	ticker    *IteratorTicker
+	ticker    Notificator
 	mu        sync.Mutex
-	iterators []*iteratorMemory
+	iterators []Notificator
 }
 
 func NewStorageMemory() *StorageMemory {
@@ -21,7 +21,7 @@ func NewStorageMemory() *StorageMemory {
 func (s *StorageMemory) Init() error {
 	s.buffer = make([]*Task, 1000)
 	s.mapped = make(map[ID]*Task, 1000)
-	s.ticker = &IteratorTicker{Duration: time.Minute}
+	s.ticker = NewTickNotificator(time.Minute)
 
 	go s.taskClean()
 
@@ -67,9 +67,9 @@ func (s *StorageMemory) FirstToExecute() (*Task, error) {
 	return nil, ErrEmpty
 }
 
-func (s *StorageMemory) Watch() (Iterator, error) {
+func (s *StorageMemory) Watch() (Notificator, error) {
 	s.mu.Lock()
-	iterator := iteratorMemory{
+	iterator := notificator{
 		channel: make(chan struct{}, 10),
 		closed:  false,
 	}
@@ -113,21 +113,17 @@ func (s *StorageMemory) taskClean() {
 
 		s.mu.Unlock()
 
-		err = s.ticker.Next(context.Background())
+		err = s.ticker.Wait(context.Background())
 	}
 }
 
 func (s *StorageMemory) notifyAll() {
-	for _, it := range s.iterators {
-		it.notify()
-	}
-
 	s.mu.Lock()
 	original := s.iterators
 	s.iterators = s.iterators[0:0]
 
 	for _, it := range original {
-		if !it.closed {
+		if err := it.Notify(); err == nil {
 			s.iterators = append(s.iterators, it)
 		}
 	}

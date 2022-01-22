@@ -14,9 +14,9 @@ import (
 const defaultCollection = "tasks"
 
 type StorageMongoConfig struct {
-	ConnectURL       string   // mongodb connect url
-	DBName           string   // used db, default: task
-	FallbackIterator Iterator // optional, used for fallback in iterator getters
+	ConnectURL          string      // mongodb connect url
+	DBName              string      // used db, default: task
+	FallbackNotificator Notificator // optional, used for fallback in iterator getters
 }
 
 type StorageMongo struct {
@@ -28,10 +28,8 @@ type StorageMongo struct {
 }
 
 func NewStorageMongo(cfg StorageMongoConfig) *StorageMongo {
-	if cfg.FallbackIterator == nil {
-		cfg.FallbackIterator = &IteratorTicker{
-			Duration: time.Minute,
-		}
+	if cfg.FallbackNotificator == nil {
+		cfg.FallbackNotificator = NewTickNotificator(time.Minute)
 	}
 
 	return &StorageMongo{
@@ -133,17 +131,17 @@ func (s *StorageMongo) FirstToExecute() (*Task, error) {
 	var res mongoTask
 
 	if err := resp.Decode(&res); err != nil {
-		return nil, ErrDBFailed
+		return nil, errors.WithStack(ErrDBFailed)
 	}
 
 	return res.Task(), nil
 }
 
-func (s *StorageMongo) Watch() (Iterator, error) {
+func (s *StorageMongo) Watch() (Notificator, error) {
 	stream, err := s.table.Watch(context.Background(), mongo.Pipeline{})
 	if err != nil {
-		if s.cfg.FallbackIterator != nil {
-			return s.cfg.FallbackIterator, nil
+		if s.cfg.FallbackNotificator != nil {
+			return s.cfg.FallbackNotificator, nil
 		}
 
 		return nil, errors.WithStack(err)

@@ -14,6 +14,12 @@ output:
   print-linter-name: true
   uniq-by-line: true
 
+linters-settings:
+  varnamelen:
+    ignore-names:
+      - ok
+      - err
+
 linters:
   enable-all: true
   disable:

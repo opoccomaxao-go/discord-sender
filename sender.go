@@ -2,6 +2,7 @@ package discordsender
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -11,13 +12,13 @@ import (
 )
 
 type Sender interface {
-	Send(request *Request) (*Response, error)
+	Send(ctx context.Context, request *Request) (*Response, error)
 }
 
 type Request struct {
 	MessageID string
-	URL       string
-	Body      json.RawMessage
+	URL       string          `json:"url"`
+	Body      json.RawMessage `json:"body"`
 }
 
 type Response struct {
@@ -26,14 +27,21 @@ type Response struct {
 	Wait     time.Duration
 }
 
-type sender struct{}
-
-func newSender() *sender {
-	return &sender{}
+type sender struct {
+	client *http.Client
 }
 
-func (s *sender) Send(request *Request) (*Response, error) {
-	req, err := http.NewRequest(
+func newSender() *sender {
+	return &sender{
+		client: &http.Client{
+			Timeout: time.Minute,
+		},
+	}
+}
+
+func (s *sender) Send(ctx context.Context, request *Request) (*Response, error) {
+	req, err := http.NewRequestWithContext(
+		ctx,
 		http.MethodPost,
 		request.URL,
 		bytes.NewReader(request.Body),
@@ -44,7 +52,7 @@ func (s *sender) Send(request *Request) (*Response, error) {
 
 	req.Header.Add("Content-Type", "application/json")
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := s.client.Do(req)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
