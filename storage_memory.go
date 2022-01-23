@@ -7,11 +7,11 @@ import (
 )
 
 type StorageMemory struct {
-	buffer    []*Task
-	mapped    map[ID]*Task
-	ticker    Notificator
-	mu        sync.Mutex
-	iterators []Notificator
+	buffer       []*Task
+	mapped       map[ID]*Task
+	ticker       Notificator
+	mu           sync.Mutex
+	notificators []Notificator
 }
 
 func NewStorageMemory() *StorageMemory {
@@ -69,14 +69,14 @@ func (s *StorageMemory) FirstToExecute() (*Task, error) {
 
 func (s *StorageMemory) Watch() (Notificator, error) {
 	s.mu.Lock()
-	iterator := notificator{
+	noty := notificator{
 		channel: make(chan struct{}, 10),
 		closed:  false,
 	}
-	s.iterators = append(s.iterators, &iterator)
+	s.notificators = append(s.notificators, &noty)
 	s.mu.Unlock()
 
-	return &iterator, nil
+	return &noty, nil
 }
 
 func (s *StorageMemory) Close() error {
@@ -119,13 +119,6 @@ func (s *StorageMemory) taskClean() {
 
 func (s *StorageMemory) notifyAll() {
 	s.mu.Lock()
-	original := s.iterators
-	s.iterators = s.iterators[0:0]
-
-	for _, it := range original {
-		if err := it.Notify(); err == nil {
-			s.iterators = append(s.iterators, it)
-		}
-	}
+	notifyAll(&s.notificators)
 	s.mu.Unlock()
 }

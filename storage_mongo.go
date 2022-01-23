@@ -2,6 +2,7 @@ package discordsender
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -14,24 +15,20 @@ import (
 const defaultCollection = "tasks"
 
 type StorageMongoConfig struct {
-	ConnectURL          string      // mongodb connect url
-	DBName              string      // used db, default: task
-	FallbackNotificator Notificator // optional, used for fallback in iterator getters
+	ConnectURL string // mongodb connect url
+	DBName     string // used db, default: task
 }
 
 type StorageMongo struct {
-	client      *mongo.Client
-	db          *mongo.Database
-	table       *mongo.Collection
-	firstInsert bool
-	cfg         StorageMongoConfig
+	client       *mongo.Client
+	db           *mongo.Database
+	table        *mongo.Collection
+	cfg          StorageMongoConfig
+	notificators []Notificator
+	mu           sync.Mutex
 }
 
 func NewStorageMongo(cfg StorageMongoConfig) *StorageMongo {
-	if cfg.FallbackNotificator == nil {
-		cfg.FallbackNotificator = NewTickNotificator(time.Minute)
-	}
-
 	return &StorageMongo{
 		cfg: cfg,
 	}
@@ -44,7 +41,6 @@ func (s *StorageMongo) Init() error {
 
 	s.db = s.client.Database(s.cfg.DBName)
 	s.table = s.db.Collection(defaultCollection)
-	s.firstInsert = true
 
 	if err := s.updateCollectionIndices(); err != nil {
 		return err
@@ -101,6 +97,8 @@ func (s *StorageMongo) updateCollectionIndices() error {
 func (s *StorageMongo) Create(task Task) error {
 	_, err := s.table.InsertOne(context.Background(), taskToMongoTask(task))
 
+	go s.notifyAll()
+
 	return errors.WithStack(err)
 }
 
@@ -110,6 +108,8 @@ func (s *StorageMongo) Update(task Task) error {
 		task.ID,
 		bson.M{"$set": taskToMongoTask(task)},
 	)
+
+	go s.notifyAll()
 
 	return errors.WithStack(err)
 }
@@ -137,14 +137,26 @@ func (s *StorageMongo) FirstToExecute() (*Task, error) {
 	return res.Task(), nil
 }
 
+func (s *StorageMongo) notifyAll() {
+	s.mu.Lock()
+	notifyAll(&s.notificators)
+	s.mu.Unlock()
+}
+
 func (s *StorageMongo) Watch() (Notificator, error) {
 	stream, err := s.table.Watch(context.Background(), mongo.Pipeline{})
 	if err != nil {
-		if s.cfg.FallbackNotificator != nil {
-			return s.cfg.FallbackNotificator, nil
-		}
+		noty := NewTickNotificator(time.Second * 30)
 
-		return nil, errors.WithStack(err)
+		s.mu.Lock()
+		s.notificators = append(s.notificators, noty)
+		s.mu.Unlock()
+
+		//nolint:errcheck // first call on new instance does not actually return error
+		go noty.Notify()
+
+		//lint:ignore nilerr // fallback case
+		return noty, nil
 	}
 
 	return &iteratorMongo{
@@ -153,5 +165,11 @@ func (s *StorageMongo) Watch() (Notificator, error) {
 }
 
 func (s *StorageMongo) Close() error {
+	s.mu.Lock()
+	for _, n := range s.notificators {
+		_ = n.Close(context.Background())
+	}
+	s.mu.Unlock()
+
 	return errors.WithStack(s.client.Disconnect(context.Background()))
 }

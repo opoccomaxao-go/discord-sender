@@ -94,6 +94,7 @@ func TestService_Serve(t *testing.T) {
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 	time.AfterFunc(time.Second*5, cancelFn)
+	//nolint:errcheck // test
 	go service.Serve(ctx)
 
 	{

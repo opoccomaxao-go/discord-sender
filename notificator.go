@@ -64,17 +64,29 @@ func NewNotificator() Notificator {
 func NewTickNotificator(duration time.Duration) Notificator {
 	res := NewNotificator()
 
-	go notifyEvery(res, duration)
+	go notifyEveryTick(res, duration)
 
 	return res
 }
 
-func notifyEvery(n Notificator, d time.Duration) {
+func notifyEveryTick(n Notificator, d time.Duration) {
 	for {
 		time.Sleep(d)
 
 		if err := n.Notify(); err != nil {
 			return
+		}
+	}
+}
+
+// notifyAll apply Notificator.Notify to each element and filters closed.
+func notifyAll(notificators *[]Notificator) {
+	original := *notificators
+	*notificators = (*notificators)[0:0]
+
+	for _, it := range original {
+		if err := it.Notify(); err == nil {
+			*notificators = append(*notificators, it)
 		}
 	}
 }
