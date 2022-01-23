@@ -57,7 +57,11 @@ func (w *mongoTask) Task() *Task {
 	case json.RawMessage:
 		res.Data = data
 	case primitive.D:
+		// from db
 		res.Data, _ = json.Marshal(data.Map())
+	case map[string]interface{}:
+		// from json.Unmarshal
+		res.Data, _ = json.Marshal(data)
 	}
 
 	return res

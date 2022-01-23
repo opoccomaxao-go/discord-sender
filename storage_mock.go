@@ -1,7 +1,5 @@
 package discordsender
 
-import "time"
-
 type StorageMock struct {
 	First   chan Task
 	Created chan Task
@@ -52,7 +50,7 @@ func (m *StorageMock) FirstToExecute() (*Task, error) {
 }
 
 func (m *StorageMock) Watch() (Notificator, error) {
-	return NewTickNotificator(time.Millisecond), nil
+	return NewNotificator(), nil
 }
 
 func (m *StorageMock) Close() error {

@@ -73,27 +73,27 @@ func TestService_Serve(t *testing.T) {
 		{
 			Executed: true,
 			Canceled: false,
-			Wait:     time.Second,
+			Wait:     0,
 		},
 		{
 			Executed: false,
 			Canceled: true,
-			Wait:     time.Second,
+			Wait:     0,
 		},
 		{
 			Executed: false,
 			Canceled: false,
-			Wait:     time.Second * 10,
+			Wait:     time.Second * 2,
 		},
 		{
 			Executed: true,
 			Canceled: false,
-			Wait:     time.Second,
+			Wait:     0,
 		},
 	})
 
 	ctx, cancelFn := context.WithCancel(context.Background())
-	time.AfterFunc(time.Second*15, cancelFn)
+	time.AfterFunc(time.Second*5, cancelFn)
 	go service.Serve(ctx)
 
 	{

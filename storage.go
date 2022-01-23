@@ -34,7 +34,7 @@ func StorageTest(t require.TestingT, storage Storage) {
 
 	toSave := Task{
 		Data:       data,
-		Expiration: time.Now().Add(time.Hour).UTC().Truncate(time.Millisecond),
+		Expiration: time.Now().Add(time.Hour).UTC().Truncate(time.Second),
 		Executed:   false,
 	}
 

@@ -42,8 +42,10 @@ func (s *Service) RunTask(task Task) error {
 }
 
 func (s *Service) send(ctx context.Context, task *Task) (time.Duration, error) {
-	var update bool
-	var req Request
+	var (
+		update bool
+		req    Request
+	)
 
 	if err := json.Unmarshal(task.Data, &req); err != nil {
 		task.Executed = true
@@ -80,15 +82,12 @@ func (s *Service) Serve(ctx context.Context) error {
 	}
 
 	for {
-		err := iter.Wait(ctx)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
 		task, err := s.config.Storage.FirstToExecute()
 		if err != nil {
 			if errors.Is(err, ErrEmpty) {
-				continue
+				if err := iter.Wait(ctx); err != nil {
+					return errors.WithStack(err)
+				}
 			}
 
 			return errors.WithStack(err)
