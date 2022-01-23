@@ -11,6 +11,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	headerRetryAfter = "retry-after"
+	headerResetAfter = "x-ratelimit-reset-after"
+)
+
 type Sender interface {
 	Send(ctx context.Context, request *Request) (*Response, error)
 }
@@ -67,12 +72,13 @@ func (s *sender) Send(ctx context.Context, request *Request) (*Response, error) 
 		response.Canceled = true
 	}
 
-	if remaining, _ := strconv.ParseInt(res.Header.Get("x-ratelimit-remaining"), 10, 64); remaining > 0 {
-		response.Wait = 0
-	} else if resetAfter, _ := strconv.ParseInt(res.Header.Get("x-ratelimit-reset-after"), 10, 64); resetAfter > 0 {
-		response.Wait = time.Second * time.Duration(resetAfter)
+	retryAfter, _ := strconv.ParseInt(res.Header.Get(headerRetryAfter), 10, 64)
+	resetAfter, _ := strconv.ParseInt(res.Header.Get(headerResetAfter), 10, 64)
+
+	if retryAfter > resetAfter {
+		response.Wait = time.Second * time.Duration(retryAfter+1)
 	} else {
-		response.Wait = time.Second * 10
+		response.Wait = time.Second * time.Duration(resetAfter+1)
 	}
 
 	return &response, nil

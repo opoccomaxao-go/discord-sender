@@ -147,10 +147,3 @@ func (m *MockServer) Start() (server *http.Server, host string, err error) {
 
 	return
 }
-
-func discordPrehandler(w http.ResponseWriter, r *http.Request) (sent bool) {
-	w.Header().Add("x-ratelimit-remaining", "0")
-	w.Header().Add("x-ratelimit-reset-after", "2")
-
-	return false
-}

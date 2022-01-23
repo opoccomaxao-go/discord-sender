@@ -19,6 +19,7 @@ linters-settings:
     ignore-names:
       - ok
       - err
+      - tC
 
 linters:
   enable-all: true
