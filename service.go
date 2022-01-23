@@ -88,6 +88,8 @@ func (s *Service) Serve(ctx context.Context) error {
 				if err := iter.Wait(ctx); err != nil {
 					return errors.WithStack(err)
 				}
+
+				continue
 			}
 
 			return errors.WithStack(err)
