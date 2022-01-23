@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -58,7 +59,7 @@ func (w *mongoTask) Task() *Task {
 		res.Data = data
 	case primitive.D:
 		// from db
-		res.Data, _ = json.Marshal(data.Map())
+		res.Data, _ = bson.MarshalExtJSON(data, false, false)
 	case map[string]interface{}:
 		// from json.Unmarshal
 		res.Data, _ = json.Marshal(data)

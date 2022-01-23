@@ -30,7 +30,7 @@ func StorageTest(t require.TestingT, storage Storage) {
 	iter, err := storage.Watch()
 	require.NoError(t, err)
 
-	data := json.RawMessage(`{"url":"1","data":"123","2":2}`)
+	data := json.RawMessage(`{"url":"1","data":{"a":1,"b":"2"},"2":2}`)
 
 	toSave := Task{
 		Data:       data,
