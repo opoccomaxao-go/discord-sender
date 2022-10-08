@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/opoccomaxao-go/task-server/task"
 	"github.com/pkg/errors"
 )
 
@@ -17,18 +18,19 @@ type MockResponse struct {
 }
 
 // Usage:
-//  m := &MockServer{
-//		PreHandler: someFunc
-//	}
-//  m.Add("GET", "/path", "", MockResponse{Body: "some response", Status: 200})
-//  m.AddDefault("POST", "/path", "some body", "some response")
 //
-//  // chainable call
-//  m.Add(a,b,c,d).Add(f,g,h,j)
+//	 m := &MockServer{
+//			PreHandler: someFunc
+//		}
+//	 m.Add("GET", "/path", "", MockResponse{Body: "some response", Status: 200})
+//	 m.AddDefault("POST", "/path", "some body", "some response")
 //
-//  _, host, _ := m.Start()
+//	 // chainable call
+//	 m.Add(a,b,c,d).Add(f,g,h,j)
 //
-//  NewSomeApi(host)
+//	 _, host, _ := m.Start()
+//
+//	 NewSomeApi(host)
 type MockServer struct {
 	Responses  map[string]map[string]map[string]MockResponse // Responses[METHOD][PATH][BODY] = ResponseText
 	PreHandler func(w http.ResponseWriter, r *http.Request) (sent bool)
@@ -108,7 +110,7 @@ func (m *MockServer) ServeHTTP(response http.ResponseWriter, request *http.Reque
 
 	resp, ok := m.Get(request.Method, request.RequestURI, string(body))
 	if !ok {
-		err := fmt.Errorf("%w: %s %s %s", ErrNotFound, request.Method, request.RequestURI, string(body))
+		err := fmt.Errorf("%w: %s %s %s", task.ErrNotFound, request.Method, request.RequestURI, string(body))
 		m.logf(err.Error())
 		http.Error(response, err.Error(), 404)
 

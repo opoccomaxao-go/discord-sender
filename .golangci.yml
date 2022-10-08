@@ -7,8 +7,6 @@ run:
   allow-parallel-runners: false
 
 output:
-  # colored-line-number|line-number|json|tab|checkstyle|code-climate|junit-xml|github-actions
-  # default is "colored-line-number"
   format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
@@ -24,25 +22,22 @@ linters-settings:
 linters:
   enable-all: true
   disable:
+    - ireturn
+    - ifshort
     - exhaustivestruct
     - testpackage
+    - errchkjson
     - gomnd
-    #- staticcheck
-    - ireturn
-  fast: false
+    - gci
+    - gofumpt
+    - paralleltest
+    - tagliatelle
+  fast: true
 
 issues:
-  # Fix found issues (if it's supported by the linter)
-  fix: true
-  # List of regexps of issue texts to exclude, empty list by default.
-  # But independently from this option we use default exclude patterns,
-  # it can be disabled by `exclude-use-default: false`. To list all
-  # excluded by default patterns execute `golangci-lint run --help`
-  # exclude:
-  #   - Using the variable on range scope `tC` in function literal
-  #   - missing type in composite literal
-  #   - " not found: "
   exclude-rules:
-    - linters:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
         - funlen
-      source: "^func Test"
+  fix: true

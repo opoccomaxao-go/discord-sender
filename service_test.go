@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/opoccomaxao-go/task-server/storage"
+	"github.com/opoccomaxao-go/task-server/task"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +15,7 @@ import (
 func TestService_RunTask(t *testing.T) {
 	t.Parallel()
 
-	storage := NewStorageMock()
+	storage := storage.NewMock()
 	data := json.RawMessage([]byte("{}"))
 	service, err := New(Config{
 		Storage: storage,
@@ -21,7 +23,7 @@ func TestService_RunTask(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	tasks := []Task{
+	tasks := []task.Task{
 		{
 			ID:         1,
 			Expiration: time.Now().Add(time.Hour),
@@ -42,7 +44,7 @@ func TestService_RunTask(t *testing.T) {
 
 	require.NoError(t, service.Close())
 
-	created := []Task{}
+	created := []task.Task{}
 	for task := range storage.Created {
 		created = append(created, task)
 	}
@@ -53,7 +55,7 @@ func TestService_RunTask(t *testing.T) {
 func TestService_Serve(t *testing.T) {
 	t.Parallel()
 
-	storage := NewStorageMock()
+	storage := storage.NewMock()
 	sender := newSenderMock()
 	data := json.RawMessage([]byte("{}"))
 
@@ -63,7 +65,7 @@ func TestService_Serve(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	storage.FillFirst([]Task{
+	storage.FillFirst([]task.Task{
 		{ID: 1, Data: data},
 		{ID: 2, Data: data},
 		{ID: 3, Data: data},
@@ -98,7 +100,7 @@ func TestService_Serve(t *testing.T) {
 	go service.Serve(ctx)
 
 	{
-		updated := []Task{}
+		updated := []task.Task{}
 		for task := range storage.Updated {
 			updated = append(updated, task)
 		}
@@ -107,7 +109,7 @@ func TestService_Serve(t *testing.T) {
 			updated[i].Expiration = time.Time{}
 		}
 
-		assert.Equal(t, []Task{
+		assert.Equal(t, []task.Task{
 			{ID: 1, Executed: true, Data: data},
 			{ID: 2, Executed: true, Data: data},
 			{ID: 3, Executed: true, Data: data},

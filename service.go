@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/opoccomaxao-go/task-server/storage"
+	"github.com/opoccomaxao-go/task-server/task"
 	"github.com/pkg/errors"
 )
 
@@ -13,13 +15,13 @@ type Service struct {
 }
 
 type Config struct {
-	Storage Storage // optional
-	Sender  Sender  // optional, used for tests only
+	Storage task.Storage // optional
+	Sender  Sender       // optional, used for tests only
 }
 
 func New(config Config) (*Service, error) {
 	if config.Storage == nil {
-		config.Storage = NewStorageMemory()
+		config.Storage = storage.NewMemory()
 	}
 
 	if config.Sender == nil {
@@ -30,26 +32,22 @@ func New(config Config) (*Service, error) {
 		config: config,
 	}
 
-	if err := res.config.Storage.Init(); err != nil {
-		return nil, errors.Wrap(err, ErrDBFailed.Error())
-	}
-
 	return res, nil
 }
 
-func (s *Service) RunTask(task Task) error {
-	return errors.WithStack(s.config.Storage.Create(task))
+func (s *Service) RunTask(t task.Task) error {
+	return errors.WithStack(s.config.Storage.Create(t))
 }
 
-func (s *Service) send(ctx context.Context, task *Task) (time.Duration, error) {
+func (s *Service) send(ctx context.Context, t *task.Task) (time.Duration, error) {
 	var (
 		update bool
 		req    Request
 	)
 
-	if err := json.Unmarshal(task.Data, &req); err != nil {
-		task.Executed = true
-		task.Expiration = time.Now().Add(time.Hour * 24)
+	if err := json.Unmarshal(t.Data, &req); err != nil {
+		t.Executed = true
+		t.Expiration = time.Now().Add(time.Hour * 24)
 		update = true
 	}
 
@@ -59,13 +57,13 @@ func (s *Service) send(ctx context.Context, task *Task) (time.Duration, error) {
 	}
 
 	if res.Executed || res.Canceled {
-		task.Executed = true
-		task.Expiration = time.Now().Add(time.Hour * 24)
+		t.Executed = true
+		t.Expiration = time.Now().Add(time.Hour * 24)
 		update = true
 	}
 
 	if update {
-		if err := s.config.Storage.Update(*task); err != nil {
+		if err := s.config.Storage.Update(*t); err != nil {
 			return 0, errors.WithStack(err)
 		}
 	}
@@ -82,9 +80,9 @@ func (s *Service) Serve(ctx context.Context) error {
 	}
 
 	for {
-		task, err := s.config.Storage.FirstToExecute()
+		t, err := s.config.Storage.FirstToExecute()
 		if err != nil {
-			if errors.Is(err, ErrEmpty) {
+			if errors.Is(err, task.ErrEmpty) {
 				if err := iter.Wait(ctx); err != nil {
 					return errors.WithStack(err)
 				}
@@ -95,7 +93,7 @@ func (s *Service) Serve(ctx context.Context) error {
 			return errors.WithStack(err)
 		}
 
-		wait, err := s.send(ctx, task)
+		wait, err := s.send(ctx, t)
 		if err != nil {
 			return errors.WithStack(err)
 		}

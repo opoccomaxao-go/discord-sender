@@ -1,6 +1,10 @@
 package discordsender
 
-import "context"
+import (
+	"context"
+
+	"github.com/opoccomaxao-go/task-server/task"
+)
 
 type senderMock struct {
 	Requests  chan Request
@@ -29,8 +33,8 @@ func (m *senderMock) Send(_ context.Context, request *Request) (*Response, error
 			return &res, nil
 		}
 
-		return nil, ErrClosed
+		return nil, task.ErrClosed
 	default:
-		return nil, ErrClosed
+		return nil, task.ErrClosed
 	}
 }
