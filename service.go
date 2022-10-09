@@ -43,6 +43,7 @@ func (s *Service) send(ctx context.Context, t *task.Task) (time.Duration, error)
 	var (
 		update bool
 		req    Request
+		wait   time.Duration
 	)
 
 	if err := json.Unmarshal(t.Data, &req); err != nil {
@@ -51,15 +52,23 @@ func (s *Service) send(ctx context.Context, t *task.Task) (time.Duration, error)
 		update = true
 	}
 
-	res, err := s.config.Sender.Send(ctx, &req)
-	if err != nil {
-		return 0, errors.WithStack(err)
-	}
-
-	if res.Executed || res.Canceled {
+	if req.URL == "" {
 		t.Executed = true
 		t.Expiration = time.Now().Add(time.Hour * 24)
 		update = true
+	} else {
+		res, err := s.config.Sender.Send(ctx, &req)
+		if err != nil {
+			return 0, errors.WithStack(err)
+		}
+
+		if res.Executed || res.Canceled {
+			t.Executed = true
+			t.Expiration = time.Now().Add(time.Hour * 24)
+			update = true
+		}
+
+		wait = res.Wait
 	}
 
 	if update {
@@ -68,7 +77,7 @@ func (s *Service) send(ctx context.Context, t *task.Task) (time.Duration, error)
 		}
 	}
 
-	return res.Wait, nil
+	return wait, nil
 }
 
 func (s *Service) Serve(ctx context.Context) error {
