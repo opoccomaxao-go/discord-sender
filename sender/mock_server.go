@@ -1,4 +1,4 @@
-package discordsender
+package sender
 
 import (
 	"fmt"
@@ -88,7 +88,7 @@ func (m *MockServer) Get(method, path, body string) (*MockResponse, bool) {
 }
 
 func (m *MockServer) AddEmpty(method, path, body string) *MockServer {
-	return m.Add(method, path, body, MockResponse{Status: 200})
+	return m.Add(method, path, body, MockResponse{Status: http.StatusOK})
 }
 
 func (m *MockServer) AddDefault(method, path, body, response string) *MockServer {
@@ -112,7 +112,7 @@ func (m *MockServer) ServeHTTP(response http.ResponseWriter, request *http.Reque
 	if !ok {
 		err := fmt.Errorf("%w: %s %s %s", task.ErrNotFound, request.Method, request.RequestURI, string(body))
 		m.logf(err.Error())
-		http.Error(response, err.Error(), 404)
+		http.Error(response, err.Error(), http.StatusNotFound)
 
 		return
 	}
@@ -141,7 +141,12 @@ func (m *MockServer) Start() (server *http.Server, host string, err error) {
 		return nil, "", errors.WithStack(err)
 	}
 
-	host = fmt.Sprintf("127.0.0.1:%d", listener.Addr().(*net.TCPAddr).Port)
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return nil, "", errors.New("invalid type after net.Listen")
+	}
+
+	host = fmt.Sprintf("127.0.0.1:%d", addr.Port)
 
 	go func() {
 		_ = server.Serve(listener)

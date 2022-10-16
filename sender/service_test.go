@@ -1,4 +1,4 @@
-package discordsender
+package sender
 
 import (
 	"context"

@@ -3,6 +3,8 @@ module github.com/opoccomaxao-go/discord-sender
 go 1.17
 
 require (
+	github.com/caarlos0/env/v6 v6.10.1
+	github.com/joho/godotenv v1.4.0
 	github.com/opoccomaxao-go/task-server v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.0
